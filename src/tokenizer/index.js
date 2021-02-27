@@ -101,38 +101,21 @@ export default class Tokenizer extends FormApplication {
 
   /* -------------------------------------------- */
 
-  async _initAvatar (html, inputUrl) {
-    const url = inputUrl ?? 'icons/svg/mystery-man.svg'
-    const avatarView = document.querySelector(".avatar > .view");
-    if(this.Avatar) {
-      this.Avatar.canvas.remove()
-      this.Avatar.stage.remove()
-      this.Avatar.controlsArea.remove()
-      this.Avatar.menu.remove()
-    }
-    this.Avatar = null
-    try {
-      const img = await Utils.download(url)
-      const MAX_DIMENSION = Math.max(img.naturalHeight, img.naturalWidth);
-      console.log("Setting Avatar dimensions to " + MAX_DIMENSION + "/" + MAX_DIMENSION);
-      this.Avatar = new View(MAX_DIMENSION, avatarView);
-      this.Avatar.addImageLayer(img);
-
-      // Setting the height of the form to the desired auto height
-      $(html).parent().parent().css("height", "auto");
-    } catch (error) {
-      if(inputUrl) {
-        console.error(error)
-        ui.notifications.error(`Failed to load original image "${url}". File has possibly been deleted. Falling back to mystery-man.`)
-        this._initAvatar(html)
-      } else {
-        ui.notifications.error('Failed to load fallback image.')
-      }
-    }
-  }
-
   activateListeners(html) {
-    this._initAvatar(html, this.actor.img)
+    let avatarView = document.querySelector(".avatar > .view");
+    this.Avatar = null;
+
+    Utils.download(this.actor.data.img)
+      .then(img => {
+        const MAX_DIMENSION = Math.max(img.naturalHeight, img.naturalWidth);
+        console.log("Setting Avatar dimensions to " + MAX_DIMENSION + "/" + MAX_DIMENSION);
+        this.Avatar = new View(MAX_DIMENSION, avatarView);
+        this.Avatar.addImageLayer(img);
+
+        // Setting the height of the form to the desired auto height
+        $(html).parent().parent().css("height", "auto");
+      })
+      .catch(error => ui.notifications.error(error));
 
     let tokenView = document.querySelector(".token > .view");
 
@@ -197,14 +180,12 @@ export default class Tokenizer extends FormApplication {
       event.preventDefault();
       let eventTarget = event.target == event.currentTarget ? event.target : event.currentTarget;
 
-      let view = (eventTarget.dataset.target === "avatar" ? this.Avatar : this.Token) ?? this.Token ?? this.Avatar;
-      console.log(this.Avatar, this.Token)
+      let view = eventTarget.dataset.target === "avatar" ? this.Avatar : this.Token;
       let type = eventTarget.dataset.type;
 
       switch (eventTarget.dataset.type) {
         case "upload":
-          const img = await Utils.upload()
-          view.addImageLayer(img);
+          Utils.upload().then(img => view.addImageLayer(img));
           break;
         case "download":
           // show dialog, then download
